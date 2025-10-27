@@ -244,12 +244,86 @@
         try {
           await db.collection('globalData').doc('exercises').set({
             exercises: newExercises,
-            updated: new Date().toISOString()
+            updated: new Date().toISOString(),
+            updatedBy: user.uid
           });
           setExercises(newExercises);
+          alert('Exercises updated successfully!');
         } catch (error) {
           console.error('Error saving exercises:', error);
           alert('Error saving exercises. Please try again.');
+        }
+      };
+
+      const addExerciseToLibrary = async () => {
+        if (!adminNewExercise.name.trim()) {
+          alert('Please enter exercise name');
+          return;
+        }
+        
+        try {
+          const newExercises = { ...exercises };
+          if (!newExercises[adminNewExercise.category]) {
+            newExercises[adminNewExercise.category] = [];
+          }
+          
+          newExercises[adminNewExercise.category].push({
+            name: adminNewExercise.name,
+            sets: adminNewExercise.sets,
+            reps: adminNewExercise.reps,
+            instructions: adminNewExercise.instructions,
+            videoUrl: adminNewExercise.videoUrl
+          });
+          
+          await saveExercises(newExercises);
+          setAdminNewExercise({ 
+            category: adminNewExercise.category, 
+            name: '', 
+            sets: 3, 
+            reps: 12, 
+            instructions: '', 
+            videoUrl: '' 
+          });
+        } catch (error) {
+          console.error('Error adding exercise:', error);
+          alert('Failed to add exercise: ' + error.message);
+        }
+      };
+
+      const deleteExerciseFromLibrary = async (category, exerciseIndex) => {
+        if (!confirm('Delete this exercise from the library?')) return;
+        
+        try {
+          const newExercises = { ...exercises };
+          if (!newExercises[category] || !newExercises[category][exerciseIndex]) {
+            alert('Exercise not found');
+            return;
+          }
+          newExercises[category].splice(exerciseIndex, 1);
+          await saveExercises(newExercises);
+        } catch (error) {
+          console.error('Error deleting exercise:', error);
+          alert('Failed to delete exercise: ' + error.message);
+        }
+      };
+
+      const addNewCategory = async () => {
+        const categoryName = prompt('Enter new category name (e.g., cardio, abs):');
+        if (!categoryName || !categoryName.trim()) return;
+        
+        try {
+          const categoryKey = categoryName.toLowerCase().replace(/\s+/g, '');
+          if (exercises[categoryKey]) {
+            alert('Category already exists!');
+            return;
+          }
+          
+          const newExercises = { ...exercises, [categoryKey]: [] };
+          await saveExercises(newExercises);
+          setAdminNewExercise({ ...adminNewExercise, category: categoryKey });
+        } catch (error) {
+          console.error('Error adding category:', error);
+          alert('Failed to add category: ' + error.message);
         }
       };
 
@@ -530,6 +604,170 @@
                 <p>✅ Sync across all devices</p>
                 <p>✅ Track last workout data</p>
                 <p>✅ Week-by-week progress</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (view === 'admin') {
+        console.log('Admin view - current exercises:', exercises);
+        
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-purple-900 to-indigo-900 p-4">
+            <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-800">🔧 Exercise Library Admin</h1>
+                <button onClick={() => setView('home')} className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+                  Back to Home
+                </button>
+              </div>
+
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-700">
+                      <strong>Admin Mode:</strong> Changes here affect the global exercise library for all users.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h2 className="text-xl font-bold mb-4 text-gray-800">Add New Exercise</h2>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <select 
+                        value={adminNewExercise.category} 
+                        onChange={(e) => setAdminNewExercise({ ...adminNewExercise, category: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      >
+                        {Object.keys(exercises).map(cat => (
+                          <option key={cat} value={cat}>
+                            {cat === 'bicepTricep' ? 'Bicep & Tricep' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Exercise Name</label>
+                      <input 
+                        type="text" 
+                        value={adminNewExercise.name}
+                        onChange={(e) => setAdminNewExercise({ ...adminNewExercise, name: e.target.value })}
+                        placeholder="e.g., Dumbbell Press"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Sets</label>
+                        <input 
+                          type="number" 
+                          value={adminNewExercise.sets}
+                          onChange={(e) => setAdminNewExercise({ ...adminNewExercise, sets: +e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Reps</label>
+                        <input 
+                          type="number" 
+                          value={adminNewExercise.reps}
+                          onChange={(e) => setAdminNewExercise({ ...adminNewExercise, reps: +e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Instructions</label>
+                      <textarea 
+                        value={adminNewExercise.instructions}
+                        onChange={(e) => setAdminNewExercise({ ...adminNewExercise, instructions: e.target.value })}
+                        placeholder="Detailed exercise instructions..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none h-24"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Video URL</label>
+                      <input 
+                        type="url" 
+                        value={adminNewExercise.videoUrl}
+                        onChange={(e) => setAdminNewExercise({ ...adminNewExercise, videoUrl: e.target.value })}
+                        placeholder="https://youtube.com/..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <button 
+                      onClick={addExerciseToLibrary}
+                      className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold"
+                    >
+                      ➕ Add Exercise
+                    </button>
+
+                    <button 
+                      onClick={addNewCategory}
+                      className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold"
+                    >
+                      📁 Add New Category
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h2 className="text-xl font-bold mb-4 text-gray-800">Current Exercise Library</h2>
+                  
+                  {!exercises || Object.keys(exercises).length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>Loading exercises...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                      {Object.entries(exercises).map(([category, exerciseList]) => (
+                        <div key={category} className="bg-white rounded-lg p-4 border border-gray-200">
+                          <h3 className="font-bold text-lg text-indigo-600 mb-3">
+                            {category === 'bicepTricep' ? 'Bicep & Tricep' : category.charAt(0).toUpperCase() + category.slice(1)}
+                            <span className="text-sm text-gray-500 ml-2">({exerciseList?.length || 0} exercises)</span>
+                          </h3>
+                          {!exerciseList || exerciseList.length === 0 ? (
+                            <div className="text-sm text-gray-400 italic">No exercises in this category</div>
+                          ) : (
+                            <div className="space-y-2">
+                              {exerciseList.map((ex, idx) => (
+                                <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm">{ex.name}</div>
+                                    <div className="text-xs text-gray-500">{ex.sets} × {ex.reps}</div>
+                                  </div>
+                                  <button 
+                                    onClick={() => deleteExerciseFromLibrary(category, idx)}
+                                    className="text-red-500 hover:text-red-700 ml-2"
+                                    title="Delete exercise"
+                                  >
+                                    <Trash2 />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1187,9 +1425,14 @@
             </div>
 
             <div className="mb-6">
-              <button onClick={() => setView('progress')} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 hover:from-indigo-700 hover:to-purple-700">
-                <BarChart />View Progress Dashboard
-              </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button onClick={() => setView('progress')} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 hover:from-indigo-700 hover:to-purple-700">
+                  <BarChart />View Progress Dashboard
+                </button>
+                <button onClick={() => setView('admin')} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 hover:from-purple-700 hover:to-pink-700">
+                  🔧 Exercise Library Admin
+                </button>
+              </div>
             </div>
 
             <h2 className="text-2xl font-bold mb-4">Templates</h2>
